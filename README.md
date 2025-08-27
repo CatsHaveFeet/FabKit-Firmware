@@ -1,2 +1,39 @@
 # FabKit-Firmware
-Firmware developed for the FabKit project
+* =====================================================================================
+* Filename:    main.cpp
+* Project:     FabKit
+* Version:     FWer
+* Author:      Ioan Alexandru Ivan (for CEST)
+* Date:        November 17, 2024
+* Description:
+*              This firmware controls the operation of FabKit sensors. It handles
+*              the calibration, acquisition and display of different signals e.g. temperature, pressure, light,
+*              distance, voltage, current etc., including communication over UART, LED control, etc.
+*
+* Updates:
+*   Version 1.0.4:
+*     - Constant gains added to fix ADS1015 10% error
+*   Version 1.0.3:
+*     - FabCurrent code modification for complance with board ver 1.5 (still gets 10% error to be adjusted manually)
+*     - Added Neopixel LED control
+*     - EraseNVS command to factory-erase stored strings
+*   Version 1.0.2:
+*     - Added FabMove position/speed/acceleration and noise filtering
+*     - Various bug fixes
+*   Version 1.0.1:
+*     - Added FabCurrent support
+*     - Added ArduinoTask
+*     - Increased speed for FabTemp
+*   Version 1.0.0:
+*     - First working Version with support for FabLight, FabTemp, FabPres
+*
+*
+* Copyright (c) 2024 Ioan Alexandru Ivan
+* All Rights Reserved.
+*
+* This software is proprietary to Ioan Alexandru Ivan and CEST. Unauthorized copying,
+* redistribution, modification, or use of any part of this software is strictly prohibited
+* without permission.
+*
+* For license inquiries, please contact  ioan.alexandru.ivan@gmail.com .
+* =====================================================================================
