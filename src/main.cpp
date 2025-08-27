@@ -1,4 +1,4 @@
-#define FWver "1.0.4" // current Firmware version
+#define FWver "1.0.5" // current Firmware version
 
 #include <Preferences.h>
 #include "nvs_flash.h"
@@ -101,6 +101,10 @@ void deleteTasks(TaskHandle_t *commTaskHandle, TaskHandle_t *arduinoTaskHandle);
 bool withinTolerance(float measured, float expected, float tolerance);
 float readPressure();
 float TempeReadTemperature();
+
+//Wi-Fi credentials
+String ssid = "";  
+String password = "";  
 
 void setup()
 {
@@ -243,20 +247,51 @@ void setup()
   if (serialNumber.length() == 0)
   {
     Serial.println("Serial number not found in storage.");
-    Serial.println("Please enter the serial number:");
+    while (true) {
+      Serial.println("Please enter the serial number:");
 
-    // Wait for user input
+      // Wait for user input
 
-    // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
-    while (Serial.available() == 0)
-    {
-      // Do nothing, just wait
+      // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
+      while (Serial.available() == 0)
+      {
+        // Do nothing, just wait
+      }
+
+      // Read the serial number from the serial monitor
+      serialNumber = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
+      serialNumber.trim();                         // Remove any leading/trailing whitespace
+
+      //Asks if input is correct
+      Serial.print("You have entered ");
+      Serial.print(serialNumber);
+      Serial.println(". Is this correct? (y/n)");
+
+      String response = "";
+
+      while (true) {
+
+        //Wait for user response
+        while (Serial.available() == 0) {
+
+        }
+
+        //Process input
+        response = Serial.readStringUntil('\n');
+        response.trim();
+        if (response != "N" && response != "n" && response != "Y" && response != "y") {
+          Serial.println("Invalid response!");
+        }
+        else {
+          break;
+        }
+      }
+
+      //Check response
+      if (response == "Y" || response == "y") {
+        break;
+      }
     }
-
-    // Read the serial number from the serial monitor
-    serialNumber = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
-    serialNumber.trim();                         // Remove any leading/trailing whitespace
-
     // Save the serial number to Preferences
     preferences.putString("serialNumber", serialNumber);
     Serial.print("Serial number ");
@@ -268,7 +303,341 @@ void setup()
   {
     Serial.print("Serial number read from storage: ");
     Serial.println(serialNumber);
+
+    //Asks if user wants to change value
+
+    Serial.println("Do you wish to change the serial number? (y/n)");
+
+    String response = "";
+
+    while (true) {
+
+      //Wait for user response
+      while (Serial.available() == 0) {
+
+      }
+
+      //Process input
+      response = Serial.readStringUntil('\n');
+      response.trim();
+      if (response != "N" && response != "n" && response != "Y" && response != "y") {
+        Serial.println("Invalid response!");
+      }
+      else {
+        break;
+      }
+    }
+
+    //Check response
+    if (response == "Y" || response == "y") {
+      while (true) {
+        Serial.println("Please enter the serial number:");
+
+        // Wait for user input
+
+        // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
+        while (Serial.available() == 0)
+        {
+          // Do nothing, just wait
+        }
+
+        // Read the serial number from the serial monitor
+        serialNumber = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
+        serialNumber.trim();                         // Remove any leading/trailing whitespace
+
+        //Asks if input is correct
+        Serial.print("You have entered ");
+        Serial.print(serialNumber);
+        Serial.println(". Is this correct? (y/n)");
+
+        String response = "";
+
+        while (true) {
+
+          //Wait for user response
+          while (Serial.available() == 0) {
+
+          }
+
+          //Process input
+          response = Serial.readStringUntil('\n');
+          response.trim();
+          if (response != "N" && response != "n" && response != "Y" && response != "y") {
+            Serial.println("Invalid response!");
+          }
+          else {
+            break;
+          }
+        }
+
+        //Check response
+        if (response == "Y" || response == "y") {
+          break;
+        }
+      }
+      // Save the serial number to Preferences
+      preferences.putString("serialNumber", serialNumber);
+      Serial.print("Serial number ");
+      Serial.print(serialNumber);
+      Serial.println(" saved to storage.");
+      // Serial.setTimeout(1000); // Set the timeout back to default
+    }
   }
+
+  //Checks for saved SSID
+  ssid = preferences.getString("SSID", "");
+
+    // Check if the SSID is empty
+  if (ssid.length() == 0)
+  {
+    Serial.println("SSID not found in storage.");
+    while (true) {
+      Serial.println("Please enter the SSID:");
+
+      // Wait for user input
+
+      // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
+      while (Serial.available() == 0)
+      {
+        // Do nothing, just wait
+      }
+
+      // Read the serial number from the serial monitor
+      ssid = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
+      ssid.trim();                         // Remove any leading/trailing whitespace
+
+      //Asks if input is correct
+      Serial.print("You have entered ");
+      Serial.print(ssid);
+      Serial.println(". Is this correct? (y/n)");
+
+      String response = "";
+
+      while (true) {
+
+        //Wait for user response
+        while (Serial.available() == 0) {
+
+        }
+
+        //Process input
+        response = Serial.readStringUntil('\n');
+        response.trim();
+        if (response != "N" && response != "n" && response != "Y" && response != "y") {
+          Serial.println("Invalid response!");
+        }
+        else {
+          break;
+        }
+      }
+
+      //Check response
+      if (response == "Y" || response == "y") {
+        break;
+      }
+    }
+    // Save the SSID to Preferences
+    preferences.putString("SSID", ssid);
+    Serial.print("SSID ");
+    Serial.print(ssid);
+    Serial.println(" saved to storage.");
+
+    while (true) {
+      //Ask for password
+      Serial.println("Please enter network password:");
+
+      // Wait for user input
+
+      // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
+      while (Serial.available() == 0)
+      {
+        // Do nothing, just wait
+      }
+
+      password = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
+      password.trim();                         // Remove any leading/trailing whitespace
+
+      //Asks if input is correct
+      Serial.print("You have entered ");
+      Serial.print(password);
+      Serial.println(". Is this correct? (y/n)");
+
+      String response = "";
+
+      while (true) {
+
+        //Wait for user response
+        while (Serial.available() == 0) {
+
+        }
+
+        //Process input
+        response = Serial.readStringUntil('\n');
+        response.trim();
+        if (response != "N" && response != "n" && response != "Y" && response != "y") {
+          Serial.println("Invalid response!");
+        }
+        else {
+          break;
+        }
+      }
+
+      //Check response
+      if (response == "Y" || response == "y") {
+        break;
+      }
+    }
+    // Save the SSID to Preferences
+    preferences.putString("Password", password);
+    Serial.print("Password ");
+    Serial.print(password);
+    Serial.println(" saved to storage.");
+    
+  }
+  else
+  {
+    Serial.print("SSID read from storage: ");
+    Serial.println(ssid);
+    Serial.print("Password read from storage: ");
+    Serial.println(password);
+
+    //Asks if user wants to change value
+    
+    Serial.println("Do you wish to change the SSID? (y/n)");
+
+    String response = "";
+
+    while (true) {
+
+      //Wait for user response
+      while (Serial.available() == 0) {
+
+      }
+
+      //Process input
+      response = Serial.readStringUntil('\n');
+      response.trim();
+      if (response != "N" && response != "n" && response != "Y" && response != "y") {
+        Serial.println("Invalid response!");
+      }
+      else {
+        break;
+      }
+    }
+
+    //Check response
+    if (response == "Y" || response == "y") {
+      while (true) {
+        Serial.println("Please enter the SSID:");
+
+        // Wait for user input
+
+        // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
+        while (Serial.available() == 0)
+        {
+          // Do nothing, just wait
+        }
+
+        // Read the serial number from the serial monitor
+        ssid = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
+        ssid.trim();                         // Remove any leading/trailing whitespace
+
+        //Asks if input is correct
+        Serial.print("You have entered ");
+        Serial.print(ssid);
+        Serial.println(". Is this correct? (y/n)");
+
+        String response = "";
+
+        while (true) {
+
+          //Wait for user response
+          while (Serial.available() == 0) {
+
+          }
+
+          //Process input
+          response = Serial.readStringUntil('\n');
+          response.trim();
+          if (response != "N" && response != "n" && response != "Y" && response != "y") {
+            Serial.println("Invalid response!");
+          }
+          else {
+            break;
+          }
+        }
+
+        //Check response
+        if (response == "Y" || response == "y") {
+          break;
+        }
+      }
+      // Save the SSID to Preferences
+      preferences.putString("SSID", ssid);
+      Serial.print("SSID ");
+      Serial.print(ssid);
+      Serial.println(" saved to storage.");
+
+      while (true) {
+        //Ask for password
+        Serial.println("Please enter network password:");
+
+        // Wait for user input
+
+        // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
+        while (Serial.available() == 0)
+        {
+          // Do nothing, just wait
+        }
+
+        password = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
+        password.trim();                         // Remove any leading/trailing whitespace
+
+        //Asks if input is correct
+        Serial.print("You have entered ");
+        Serial.print(password);
+        Serial.println(". Is this correct? (y/n)");
+
+        String response = "";
+
+        while (true) {
+
+          //Wait for user response
+          while (Serial.available() == 0) {
+
+          }
+
+          //Process input
+          response = Serial.readStringUntil('\n');
+          response.trim();
+          if (response != "N" && response != "n" && response != "Y" && response != "y") {
+            Serial.println("Invalid response!");
+          }
+          else {
+            break;
+          }
+        }
+
+        //Check response
+        if (response == "Y" || response == "y") {
+          break;
+        }
+      }
+      // Save the serial number to Preferences
+      preferences.putString("Password", password);
+      Serial.print("Password ");
+      Serial.print(password);
+      Serial.println(" saved to storage.");
+    }
+  }
+  
+  // Connect to WiFi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+  Serial.println("Connected to WiFi!");
 
   // Close Preferences
   preferences.end();

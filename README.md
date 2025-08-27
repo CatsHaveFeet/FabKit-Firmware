@@ -11,6 +11,9 @@
 *              distance, voltage, current etc., including communication over UART, LED control, etc.
 *
 * Updates:
+*   Version 1.0.5:
+*     - Added Wi-Fi connectivity
+*     - Serial Number, SSID and Password can now be changed during setup
 *   Version 1.0.4:
 *     - Constant gains added to fix ADS1015 10% error
 *   Version 1.0.3:
