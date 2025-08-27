@@ -1,0 +1,22 @@
+x€xøx€x€€xxxxøx€€€€x€<0>€€€€<0>€x€x€<0>€x€€€€€ø€€€€x€€ø€<0>ø€€ø€x<0>€xx<0>€x€€x€xøxø€<0>€<0>x<0>€<0>€<0>x<0>xø€xxxxx€xø€x€xx€€xx<0>x€xx<0>xxx€x<0>x€<0>xøxøxøxø€<0>€<0>x<0>€ø€€<0>€<0>xø€x<0>xx€xx€<0>x<0>x€x<0>xxx€<0>x€x<0>x€x<0>€xx€<0>x€x€xxx€xx<0>€xø<0>xøxøx€x€øx€x€x€øxxø€<0>€<0>€<0>x<0>€ø€x<0>xx€xxxx€ø€<0>€<0>xxxxxø<0>€xø<0>xøxxxx<0>€x€xøxø€<0>€<0>x€<0>€<0>xxxx<0>€x€xøxø€<0>€<0>x€<0>€<0>x<0>€xx<0>€x€xøxø€<0>€<0>x€<0>€<0>xø<0>x€x€øx<0>€x€xøxø€<0>€<0>x€<0>€<0>x<0>øx€xx<0>€x€xøxø€<0>€<0>x€<0>€<0>xøøxxx<0>€x€xøxø€<0>€<0>x€<0>€x<0>€xxøxøx€xxxø€<0><0>x€€x€xx<0>€ø<0>xøxøx<0>xxx€<0>€x€øxøxø€€€€x<0>€x<0>øxøx<0>x€xø€<0>€<0>x€€€€x€x€x€<0>€ø€€<0>€<0>x<0>øxxxøxø€x€x€<0>€<0>ø€x<0>€x<0>øxøx<0>x€xø€<0>€<0>xø€<0>€<0>€øø€<0>€<0>€<0>€<0>€<0>x<0>øxxxøxø€x€ø€€x€ø€€€€€x<0>€x<0>øxøx<0>x€xø€<0>€<0>xø€<0>€<0>€<0>€<0>€<0>ø€<0>€<0>€<0>x<0>øxxxøxø€ø€€<0>€ø€€€ø€x<0>€xx€xøxøx€x€x€<0>€<0>xø€<0>€<0>€<0>€<0>€xø€x€xø€x<0>€x
+
+Hello FabKit !!
+FW ver. 1.0.0
+MAC Address: A8:42:E3:A9:98:98
+ADC at D34, D35: 3.300V, 0.000V
+Board Type Identified: FabPressure
+[  1017][E][Preferences.cpp:483] getString(): nvs_get_str len fail: serialNumber NOT_FOUND
+Serial number not found in storage.
+Please enter the serial number:
+Serial number saved to storage.
+x€xøx€x€€xxxxøx€€€€x€<0>€€€€<0>€x€x€<0>€x€€€€€ø€€€€x€€ø€<0>ø€€ø€x<0>€xx<0>€x€€x€xøxø€<0>€<0>x<0>€<0>€<0>x<0>xø€xxxxx€xø€x€xx€€xx<0>x€xx<0>xxx€x<0>x€<0>xøxøxøxø€<0>€<0>x<0>€ø€€<0>€<0>xø€x<0>xx€xx€<0>x<0>x€x<0>xxx€<0>x€x<0>x€x<0>€xx€<0>x€x€xxx€xx<0>€xø<0>xøxøx€x€øx€x€x€øxxø€<0>€<0>€<0>x<0>€ø€x<0>xx€xxxx€ø€<0>€<0>xxxxxø<0>€xø<0>xøxxxx<0>€x€xøxø€<0>€<0>x€<0>€<0>xxxx<0>€x€xøxø€<0>€<0>x€<0>€<0>x<0>€xx<0>€x€xøxø€<0>€<0>x€<0>€<0>xø<0>x€x€øx<0>€x€xøxø€<0>€<0>x€<0>€<0>x<0>øx€xx<0>€x€xøxø€<0>€<0>x€<0>€<0>xøøxxx<0>€x€xøxø€<0>€<0>x€<0>€x<0>€xxøxøx€xxxø€<0><0>x€€x€xx<0>€ø<0>xøxøx<0>xxx€<0>€x€øxøxø€€€€x<0>€x<0>øxøx<0>x€xø€<0>€<0>x€€€€x€x€x€<0>€ø€€<0>€<0>x<0>øxxxøxø€x€x€<0>€<0>ø€x<0>€x<0>øxøx<0>x€xø€<0>€<0>xø€<0>€<0>€øø€<0>€<0>€<0>€<0>€<0>x<0>øxxxøxø€x€ø€€x€ø€€€€€x<0>€x<0>øxøx<0>x€xø€<0>€<0>xø€<0>€<0>€<0>€<0>€<0>ø€<0>€<0>€<0>x<0>øxxxøxø€ø€€<0>€ø€€€ø€x<0>€xx€xøxøx€x€x€<0>€<0>xø€<0>€<0>€<0>€<0>€xø€x€xø€x<0>€x
+
+Hello FabKit !!
+FW ver. 1.0.0
+MAC Address: A8:42:E3:A9:98:98
+ADC at D34, D35: 3.300V, 0.000V
+Board Type Identified: FabPressure
+Serial number read from storage: FabPressure01-123456
+
+
+#define RREF 430.0     // The value of the RTD's resistor, usually 430.0 for PT100
