@@ -4,13 +4,18 @@
 * Project:     FabKit
 * Version:     FWer
 * Author:      Ioan Alexandru Ivan (for CEST)
-* Date:        November 17, 2024
+* Date:        September 1, 2025
 * Description:
 *              This firmware controls the operation of FabKit sensors. It handles
 *              the calibration, acquisition and display of different signals e.g. temperature, pressure, light,
 *              distance, voltage, current etc., including communication over UART, LED control, etc.
 *
 * Updates:
+*   Version 1.0.6:
+*     - Removed Serial Number changing
+*     - Wi-Fi connection is now optional
+*     - Data can now be sent to FabLab MQTT Broker via Wi-Fi
+*     - Data Frequency can now be changed remotely through MQTT
 *   Version 1.0.5:
 *     - Added Wi-Fi connectivity
 *     - Serial Number, SSID and Password can now be changed during setup
@@ -31,7 +36,7 @@
 *     - First working Version with support for FabLight, FabTemp, FabPres
 *
 *
-* Copyright (c) 2024 Ioan Alexandru Ivan
+* Copyright (c) 2025 Ioan Alexandru Ivan
 * All Rights Reserved.
 *
 * This software is proprietary to Ioan Alexandru Ivan and CEST. Unauthorized copying,

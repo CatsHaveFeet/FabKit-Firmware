@@ -1,9 +1,11 @@
-#define FWver "1.0.5" // current Firmware version
+#define FWver "1.0.6" // current Firmware version
 
 #include <Preferences.h>
 #include "nvs_flash.h"
 #include <WiFi.h>
 #include <Wire.h>
+#include <PubSubClient.h>
+#include <cstring>
 
 Preferences preferences;
 String serialNumber = "";
@@ -104,7 +106,37 @@ float TempeReadTemperature();
 
 //Wi-Fi credentials
 String ssid = "";  
-String password = "";  
+String password = "";
+
+//Communication options
+bool serialComm = false;
+bool wifiComm = false;
+
+//MQTT configuration
+#define mqttServer "192.168.1.11"
+WiFiClient espClient;
+PubSubClient client(espClient);
+char *freq;
+String mqttBaseTopic;
+String dataTopic;
+String freqTopic;
+
+
+#define MAX_MSG_LEN 64
+char recTopic[64];
+char recMessage[MAX_MSG_LEN];
+
+void mqttCallback(char* topic, byte* message, unsigned int length) {
+  // copy topic safely
+  strncpy(recTopic, topic, sizeof(recTopic) - 1);
+  recTopic[sizeof(recTopic) - 1] = '\0';
+
+  // copy message safely
+  int copyLen = min((int)length, MAX_MSG_LEN - 1);
+  memcpy(recMessage, message, copyLen);
+  recMessage[copyLen] = '\0'; // null terminate
+}
+
 
 void setup()
 {
@@ -195,6 +227,7 @@ void setup()
     sensorDataArray.identifier = 'L';
     sensorDataArray.sensoralias = "Lumina";
     sensorDataArray.valueCount = 1;
+    mqttBaseTopic = "FabKit/FabLight";
   }
   else if (withinTolerance(voltage1, fabTempVoltage, tolerance) && withinTolerance(voltage2, 0.0, tolerance))
   {
@@ -202,6 +235,7 @@ void setup()
     sensorDataArray.identifier = 'T';
     sensorDataArray.sensoralias = "Temperatura";
     sensorDataArray.valueCount = 1;
+    mqttBaseTopic = "FabKit/FabTemp";
   }
   else if (withinTolerance(voltage1, fabPressureVoltage, tolerance) && withinTolerance(voltage2, 0.0, tolerance))
   {
@@ -209,6 +243,7 @@ void setup()
     sensorDataArray.identifier = 'P';
     sensorDataArray.sensoralias = "Presiune";
     sensorDataArray.valueCount = 1;
+    mqttBaseTopic = "FabKit/FabPress";
   }
   else if (withinTolerance(voltage1, fabDistanceVoltage, tolerance) && withinTolerance(voltage2, 0.0, tolerance))
   {
@@ -216,6 +251,7 @@ void setup()
     sensorDataArray.identifier = 'D';
     sensorDataArray.sensoralias = "Distanta";
     sensorDataArray.valueCount = 3;
+    mqttBaseTopic = "FabKit/FabMove";
   }
   else if (withinTolerance(voltage1, fabCurrentVoltage, tolerance) && withinTolerance(voltage2, 0.0, tolerance))
   {
@@ -223,6 +259,7 @@ void setup()
     sensorDataArray.identifier = 'C';
     sensorDataArray.sensoralias = "Curent";
     sensorDataArray.valueCount = 2;
+    mqttBaseTopic = "FabKit/FabCurrent";
   }
   else
   {
@@ -232,6 +269,10 @@ void setup()
       ; // Halt execution
   }
 
+  
+  dataTopic = mqttBaseTopic + "/Data";
+  freqTopic = mqttBaseTopic + "/Freq";
+
   Serial.print("Board Type found: ");
   Serial.println(boardType);
   Serial.print("Board Identifier: ");
@@ -240,96 +281,19 @@ void setup()
   // Now proceed to Preferences
   preferences.begin("my_app", false);
 
+  //Skip setup for wifi only mode
+  preferences.getBool("SerialComm", serialComm);
+  preferences.getBool("WifiComm", wifiComm);
+
   // Read the serial number from Preferences
   serialNumber = preferences.getString("serialNumber", "");
 
-  // Check if the serial number is empty
-  if (serialNumber.length() == 0)
-  {
-    Serial.println("Serial number not found in storage.");
-    while (true) {
-      Serial.println("Please enter the serial number:");
-
-      // Wait for user input
-
-      // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
-      while (Serial.available() == 0)
-      {
-        // Do nothing, just wait
-      }
-
-      // Read the serial number from the serial monitor
-      serialNumber = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
-      serialNumber.trim();                         // Remove any leading/trailing whitespace
-
-      //Asks if input is correct
-      Serial.print("You have entered ");
-      Serial.print(serialNumber);
-      Serial.println(". Is this correct? (y/n)");
-
-      String response = "";
-
-      while (true) {
-
-        //Wait for user response
-        while (Serial.available() == 0) {
-
-        }
-
-        //Process input
-        response = Serial.readStringUntil('\n');
-        response.trim();
-        if (response != "N" && response != "n" && response != "Y" && response != "y") {
-          Serial.println("Invalid response!");
-        }
-        else {
-          break;
-        }
-      }
-
-      //Check response
-      if (response == "Y" || response == "y") {
-        break;
-      }
-    }
-    // Save the serial number to Preferences
-    preferences.putString("serialNumber", serialNumber);
-    Serial.print("Serial number ");
-    Serial.print(serialNumber);
-    Serial.println(" saved to storage.");
-    // Serial.setTimeout(1000); // Set the timeout back to default
-  }
-  else
-  {
-    Serial.print("Serial number read from storage: ");
-    Serial.println(serialNumber);
-
-    //Asks if user wants to change value
-
-    Serial.println("Do you wish to change the serial number? (y/n)");
-
-    String response = "";
-
-    while (true) {
-
-      //Wait for user response
-      while (Serial.available() == 0) {
-
-      }
-
-      //Process input
-      response = Serial.readStringUntil('\n');
-      response.trim();
-      if (response != "N" && response != "n" && response != "Y" && response != "y") {
-        Serial.println("Invalid response!");
-      }
-      else {
-        break;
-      }
-    }
-
-    //Check response
-    if (response == "Y" || response == "y") {
+  if (serialComm || (!serialComm && !wifiComm)) {
+  
+    // Check if the serial number is empty
+    if (serialNumber.length() == 0)
+    {
+      Serial.println("Serial number not found in storage.");
       while (true) {
         Serial.println("Please enter the serial number:");
 
@@ -382,151 +346,26 @@ void setup()
       Serial.println(" saved to storage.");
       // Serial.setTimeout(1000); // Set the timeout back to default
     }
-  }
+    else
+    {
+      Serial.print("Serial number read from storage: ");
+      Serial.println(serialNumber);
 
-  //Checks for saved SSID
-  ssid = preferences.getString("SSID", "");
-
-    // Check if the SSID is empty
-  if (ssid.length() == 0)
-  {
-    Serial.println("SSID not found in storage.");
-    while (true) {
-      Serial.println("Please enter the SSID:");
-
-      // Wait for user input
-
-      // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
-      while (Serial.available() == 0)
-      {
-        // Do nothing, just wait
-      }
-
-      // Read the serial number from the serial monitor
-      ssid = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
-      ssid.trim();                         // Remove any leading/trailing whitespace
-
-      //Asks if input is correct
-      Serial.print("You have entered ");
-      Serial.print(ssid);
-      Serial.println(". Is this correct? (y/n)");
-
-      String response = "";
-
-      while (true) {
-
-        //Wait for user response
-        while (Serial.available() == 0) {
-
-        }
-
-        //Process input
-        response = Serial.readStringUntil('\n');
-        response.trim();
-        if (response != "N" && response != "n" && response != "Y" && response != "y") {
-          Serial.println("Invalid response!");
-        }
-        else {
-          break;
-        }
-      }
-
-      //Check response
-      if (response == "Y" || response == "y") {
-        break;
-      }
-    }
-    // Save the SSID to Preferences
-    preferences.putString("SSID", ssid);
-    Serial.print("SSID ");
-    Serial.print(ssid);
-    Serial.println(" saved to storage.");
-
-    while (true) {
-      //Ask for password
-      Serial.println("Please enter network password:");
-
-      // Wait for user input
-
-      // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
-      while (Serial.available() == 0)
-      {
-        // Do nothing, just wait
-      }
-
-      password = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
-      password.trim();                         // Remove any leading/trailing whitespace
-
-      //Asks if input is correct
-      Serial.print("You have entered ");
-      Serial.print(password);
-      Serial.println(". Is this correct? (y/n)");
-
-      String response = "";
-
-      while (true) {
-
-        //Wait for user response
-        while (Serial.available() == 0) {
-
-        }
-
-        //Process input
-        response = Serial.readStringUntil('\n');
-        response.trim();
-        if (response != "N" && response != "n" && response != "Y" && response != "y") {
-          Serial.println("Invalid response!");
-        }
-        else {
-          break;
-        }
-      }
-
-      //Check response
-      if (response == "Y" || response == "y") {
-        break;
-      }
-    }
-    // Save the SSID to Preferences
-    preferences.putString("Password", password);
-    Serial.print("Password ");
-    Serial.print(password);
-    Serial.println(" saved to storage.");
-    
-  }
-  else
-  {
-    Serial.print("SSID read from storage: ");
-    Serial.println(ssid);
-    Serial.print("Password read from storage: ");
-    Serial.println(password);
-
-    //Asks if user wants to change value
-    
-    Serial.println("Do you wish to change the SSID? (y/n)");
-
-    String response = "";
-
-    while (true) {
-
-      //Wait for user response
-      while (Serial.available() == 0) {
-
-      }
-
-      //Process input
-      response = Serial.readStringUntil('\n');
-      response.trim();
-      if (response != "N" && response != "n" && response != "Y" && response != "y") {
-        Serial.println("Invalid response!");
-      }
-      else {
-        break;
-      }
+      // Save the serial number to Preferences
+      preferences.putString("serialNumber", serialNumber);
+      Serial.print("Serial number ");
+      Serial.print(serialNumber);
+      Serial.println(" saved to storage.");
     }
 
-    //Check response
-    if (response == "Y" || response == "y") {
+    //Checks for saved SSID
+    ssid = preferences.getString("SSID", "");
+    password = preferences.getString("Password", "");
+
+      // Check if the SSID is empty
+    if (ssid.length() == 0)
+    {
+      Serial.println("SSID not found in storage.");
       while (true) {
         Serial.println("Please enter the SSID:");
 
@@ -623,21 +462,227 @@ void setup()
           break;
         }
       }
-      // Save the serial number to Preferences
+      // Save the SSID to Preferences
       preferences.putString("Password", password);
       Serial.print("Password ");
       Serial.print(password);
       Serial.println(" saved to storage.");
+      
+    }
+    else
+    {
+      Serial.print("SSID read from storage: ");
+      Serial.println(ssid);
+      Serial.print("Password read from storage: ");
+      Serial.println(password);
+
+      //Asks if user wants to change value
+      
+      Serial.println("Do you wish to change the SSID? (y/n)");
+
+      String response = "";
+
+      while (true) {
+
+        //Wait for user response
+        while (Serial.available() == 0) {
+
+        }
+
+        //Process input
+        response = Serial.readStringUntil('\n');
+        response.trim();
+        if (response != "N" && response != "n" && response != "Y" && response != "y") {
+          Serial.println("Invalid response!");
+        }
+        else {
+          break;
+        }
+      }
+
+      //Check response
+      if (response == "Y" || response == "y") {
+        while (true) {
+          Serial.println("Please enter the SSID:");
+
+          // Wait for user input
+
+          // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
+          while (Serial.available() == 0)
+          {
+            // Do nothing, just wait
+          }
+
+          // Read the serial number from the serial monitor
+          ssid = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
+          ssid.trim();                         // Remove any leading/trailing whitespace
+
+          //Asks if input is correct
+          Serial.print("You have entered ");
+          Serial.print(ssid);
+          Serial.println(". Is this correct? (y/n)");
+
+          String response = "";
+
+          while (true) {
+
+            //Wait for user response
+            while (Serial.available() == 0) {
+
+            }
+
+            //Process input
+            response = Serial.readStringUntil('\n');
+            response.trim();
+            if (response != "N" && response != "n" && response != "Y" && response != "y") {
+              Serial.println("Invalid response!");
+            }
+            else {
+              break;
+            }
+          }
+
+          //Check response
+          if (response == "Y" || response == "y") {
+            break;
+          }
+        }
+        // Save the SSID to Preferences
+        preferences.putString("SSID", ssid);
+        Serial.print("SSID ");
+        Serial.print(ssid);
+        Serial.println(" saved to storage.");
+
+        while (true) {
+          //Ask for password
+          Serial.println("Please enter network password:");
+
+          // Wait for user input
+
+          // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
+          while (Serial.available() == 0)
+          {
+            // Do nothing, just wait
+          }
+
+          password = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
+          password.trim();                         // Remove any leading/trailing whitespace
+
+          //Asks if input is correct
+          Serial.print("You have entered ");
+          Serial.print(password);
+          Serial.println(". Is this correct? (y/n)");
+
+          String response = "";
+
+          while (true) {
+
+            //Wait for user response
+            while (Serial.available() == 0) {
+
+            }
+
+            //Process input
+            response = Serial.readStringUntil('\n');
+            response.trim();
+            if (response != "N" && response != "n" && response != "Y" && response != "y") {
+              Serial.println("Invalid response!");
+            }
+            else {
+              break;
+            }
+          }
+
+          //Check response
+          if (response == "Y" || response == "y") {
+            break;
+          }
+        }
+        // Save the serial number to Preferences
+        preferences.putString("Password", password);
+        Serial.print("Password ");
+        Serial.print(password);
+        Serial.println(" saved to storage.");
+      }
+    }
+    
+    //Asks user for communicaton channels
+    Serial.println("Do you wish to use communication over serial, wifi or both? (S/W/B/N(skip))");
+    String response = "";
+
+    while (true) {
+
+      //Wait for user response
+      while (Serial.available() == 0) {
+
+      }
+
+      //Process input
+      response = Serial.readStringUntil('\n');
+      response.trim();
+      if (response != "S" && response != "s" && response != "W" && response != "w" && response != "B" && response != "b" && response == "N" && response == "n") {
+        Serial.println("Invalid response!");
+      }
+      else {
+        break;
+      }
+    }
+
+    //Set connection type
+    if (response == "S" || response == "s") {
+      serialComm = true;
+    }
+    else if (response == "W" || response == "w") {
+      wifiComm = true;
+    }
+    else if (response == "B" || response == "b") {
+      serialComm = true;
+      wifiComm = true;
+    }
+    if (response != "N" && response != "n") {
+      preferences.putBool("SerialComm", serialComm);
+      preferences.putBool("WifiComm", wifiComm);
     }
   }
-  
+
   // Connect to WiFi
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Connecting to WiFi...");
+  if (wifiComm) {
+    WiFi.begin(ssid, password);
+    for (int i = 0; WiFi.status() != WL_CONNECTED && i < 10; i++) {
+      delay(1000);
+      Serial.println("Connecting to WiFi...");
+    }
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("Connected to WiFi!");
+    }
+    else if (!serialComm) {
+      Serial.println("Wi-Fi connection failed. Switching to serial");
+      preferences.putBool("serialComm", true);
+    }
   }
-  Serial.println("Connected to WiFi!");
+
+  //Set server
+  client.setServer(mqttServer, 1883);
+
+  //MQTT server connect
+  while (!client.connected()) {
+    Serial.print("Connecting to MQTT Client...");
+    if (client.connect("FabClient")) {
+      Serial.println("connected to MQTT broker!");
+    }
+    else {
+      Serial.print("failed with state ");
+      Serial.print(client.state());
+      Serial.println(". Retrying in 5 seconds...");
+      delay(5000); // Wait before retrying
+    }
+  }
+
+  //Server setup
+  client.setCallback(mqttCallback);
+
+  //Set MQTT subscriptions
+  client.subscribe(freqTopic.c_str());
 
   // Close Preferences
   preferences.end();
@@ -650,7 +695,9 @@ void setup()
   xMutex = xSemaphoreCreateMutex();
   if (xMutex == NULL)
   {
-    Serial.println("Failed to create mutex, halt!");
+    if (serialComm) {
+      Serial.println("Failed to create mutex, halt!");
+    }
     while (1)
       ; // Halt execution
   }
@@ -659,7 +706,10 @@ void setup()
   xTaskCreatePinnedToCore(CommunicationTask, "CommTask", 10000, NULL, 1, &commTaskHandle, 1); // Core 1
   xTaskCreatePinnedToCore(ArduinoTask, "ArduinoTask", 2048, NULL, 1, &arduinoTaskHandle, 1);  // Core 1
 
-  Serial.println("Mutex created. Tasks created. Leaving setup().");
+  if (serialComm) {
+      Serial.println("Mutex created. Tasks created. Leaving setup().");
+  }
+  
   leds[0] = CRGB::Black; // Led basic colors available Red Orange Gold Yellow Green Aqua Cyan Teal Blue Violet Purple Magenta Pink White Silver Black
   FastLED.show();        // Update LED - OFF
 }
@@ -739,8 +789,10 @@ void CommunicationTask(void *pvParameters)
   sensorDataArrayLocal.valueCount = sensorDataArray.valueCount;   // Up to 5 float values
 
   int core = xPortGetCoreID();
-  Serial.print("CommunicationTask started on core ");
-  Serial.println(core);
+  if (serialComm) {
+      Serial.print("CommunicationTask started on core ");
+      Serial.println(core);
+    }
 
   // Initial loop frequency in milliseconds (default to 1000ms)
   uint32_t loopFrequencyMs = 1000;
@@ -814,6 +866,11 @@ void CommunicationTask(void *pvParameters)
             leds[0] = CRGB::Cyan; // Led basic colors available Red Orange Gold Yellow Green Aqua Cyan Teal Blue Violet Purple Magenta Pink White Silver Black
             FastLED.show();       // Update LED
           }
+          if (wifiComm && client.connected()) {
+              char x[16];  // plenty for an integer
+              snprintf(x, sizeof(x), "%d", receivedNumber);
+              client.publish(freqTopic.c_str(), x, true);
+          }
         }
         else
         {
@@ -822,6 +879,22 @@ void CommunicationTask(void *pvParameters)
       }
       inputString = ""; // Clear the input buffer
     }
+    if (wifiComm && strcmp(recTopic, freqTopic.c_str()) == 0) {
+      int receivedNumber = atoi(recMessage);  // convert string to int
+
+      if (receivedNumber >= 0 && receivedNumber < 100) {
+          loopFrequencyMs = 1000 / receivedNumber;
+          sendSensorData = true;
+          previousMillis = currentMillis;
+
+          leds[0] = CRGB::Cyan;
+          FastLED.show();
+      }
+
+      // clear topic so we don't process it twice
+      recTopic[0] = '\0';
+    }
+
 
     // Check if it's time to send sensor data
     if (sendSensorData && (currentMillis - previousMillis >= loopFrequencyMs))
@@ -841,20 +914,41 @@ void CommunicationTask(void *pvParameters)
       }
 
       // Send sensor data over serial
-      Serial.print(sensorDataArrayLocal.identifier);
-      Serial.print(" ");
-      Serial.print(sensorDataArrayLocal.timestamp);
-      Serial.print(" ");
+      if (serialComm) {
+        Serial.print(sensorDataArrayLocal.identifier);
+        Serial.print(" ");
+        Serial.print(sensorDataArrayLocal.timestamp);
+        Serial.print(" ");
 
-      for (int j = 0; j < sensorDataArrayLocal.valueCount; j++)
-      {
-        Serial.print(sensorDataArrayLocal.values[j], 2); // 2 decimal places
-        if (j < sensorDataArrayLocal.valueCount - 1)
+        for (int j = 0; j < sensorDataArrayLocal.valueCount; j++)
         {
-          Serial.print(" ");
+          Serial.print(sensorDataArrayLocal.values[j], 2); // 2 decimal places
+          if (j < sensorDataArrayLocal.valueCount - 1)
+          {
+            Serial.print(" ");
+          }
+          Serial.println();
         }
       }
-      Serial.println();
+      if (wifiComm) {
+        char msg[256];  // big enough buffer
+        snprintf(msg, sizeof(msg), "%c %u", 
+                sensorDataArrayLocal.identifier, 
+                sensorDataArrayLocal.timestamp);
+
+        for (int j = 0; j < sensorDataArrayLocal.valueCount; j++) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), " %.2f", sensorDataArrayLocal.values[j]);
+            strncat(msg, buf, sizeof(msg) - strlen(msg) - 1);
+        }
+
+        // publish full message once
+        if (!client.publish(dataTopic.c_str(), msg, true)) {
+            Serial.println("MQTT publish failed!");
+        }
+        client.loop();
+      }
+
     }
 
     // Yield to allow lower-priority tasks to run
