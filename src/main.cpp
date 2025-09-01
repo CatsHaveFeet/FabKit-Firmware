@@ -1,4 +1,4 @@
-#define FWver "1.0.5" // current Firmware version
+#define FWver "1.0.6" // current Firmware version
 
 #include <Preferences.h>
 #include "nvs_flash.h"
@@ -113,20 +113,30 @@ bool serialComm = false;
 bool wifiComm = false;
 
 //MQTT configuration
-#define mqttServer "test.mosquito.org"
+#define mqttServer "192.168.1.11"
 WiFiClient espClient;
 PubSubClient client(espClient);
-char *mqttAdress;
-char *dataAdress;
-char *freqAdress;
 char *freq;
-byte *recMessage;
-char *recTopic;
+String mqttBaseTopic;
+String dataTopic;
+String freqTopic;
+
+
+#define MAX_MSG_LEN 64
+char recTopic[64];
+char recMessage[MAX_MSG_LEN];
 
 void mqttCallback(char* topic, byte* message, unsigned int length) {
-  recMessage = message;
-  recTopic = topic;
+  // copy topic safely
+  strncpy(recTopic, topic, sizeof(recTopic) - 1);
+  recTopic[sizeof(recTopic) - 1] = '\0';
+
+  // copy message safely
+  int copyLen = min((int)length, MAX_MSG_LEN - 1);
+  memcpy(recMessage, message, copyLen);
+  recMessage[copyLen] = '\0'; // null terminate
 }
+
 
 void setup()
 {
@@ -217,6 +227,7 @@ void setup()
     sensorDataArray.identifier = 'L';
     sensorDataArray.sensoralias = "Lumina";
     sensorDataArray.valueCount = 1;
+    mqttBaseTopic = "FabKit/FabLight";
   }
   else if (withinTolerance(voltage1, fabTempVoltage, tolerance) && withinTolerance(voltage2, 0.0, tolerance))
   {
@@ -224,6 +235,7 @@ void setup()
     sensorDataArray.identifier = 'T';
     sensorDataArray.sensoralias = "Temperatura";
     sensorDataArray.valueCount = 1;
+    mqttBaseTopic = "FabKit/FabTemp";
   }
   else if (withinTolerance(voltage1, fabPressureVoltage, tolerance) && withinTolerance(voltage2, 0.0, tolerance))
   {
@@ -231,6 +243,7 @@ void setup()
     sensorDataArray.identifier = 'P';
     sensorDataArray.sensoralias = "Presiune";
     sensorDataArray.valueCount = 1;
+    mqttBaseTopic = "FabKit/FabPress";
   }
   else if (withinTolerance(voltage1, fabDistanceVoltage, tolerance) && withinTolerance(voltage2, 0.0, tolerance))
   {
@@ -238,6 +251,7 @@ void setup()
     sensorDataArray.identifier = 'D';
     sensorDataArray.sensoralias = "Distanta";
     sensorDataArray.valueCount = 3;
+    mqttBaseTopic = "FabKit/FabMove";
   }
   else if (withinTolerance(voltage1, fabCurrentVoltage, tolerance) && withinTolerance(voltage2, 0.0, tolerance))
   {
@@ -245,6 +259,7 @@ void setup()
     sensorDataArray.identifier = 'C';
     sensorDataArray.sensoralias = "Curent";
     sensorDataArray.valueCount = 2;
+    mqttBaseTopic = "FabKit/FabCurrent";
   }
   else
   {
@@ -253,6 +268,10 @@ void setup()
     while (1)
       ; // Halt execution
   }
+
+  
+  dataTopic = mqttBaseTopic + "/Data";
+  freqTopic = mqttBaseTopic + "/Freq";
 
   Serial.print("Board Type found: ");
   Serial.println(boardType);
@@ -268,16 +287,6 @@ void setup()
 
   // Read the serial number from Preferences
   serialNumber = preferences.getString("serialNumber", "");
-
-  //Set MQTT adress
-
-  mqttAdress = "Fabkit/";
-  strcat(mqttAdress, boardType.c_str());
-  strcat(mqttAdress, "/");
-  strcat(mqttAdress, serialNumber.c_str());
-  strcat(mqttAdress, "/");
-  strcat(dataAdress, "/Data");
-  strcat(freqAdress, "/Freq");
 
   if (serialComm || (!serialComm && !wifiComm)) {
   
@@ -342,84 +351,11 @@ void setup()
       Serial.print("Serial number read from storage: ");
       Serial.println(serialNumber);
 
-      //Asks if user wants to change value
-
-      Serial.println("Do you wish to change the serial number? (y/n)");
-
-      String response = "";
-
-      while (true) {
-
-        //Wait for user response
-        while (Serial.available() == 0) {
-
-        }
-
-        //Process input
-        response = Serial.readStringUntil('\n');
-        response.trim();
-        if (response != "N" && response != "n" && response != "Y" && response != "y") {
-          Serial.println("Invalid response!");
-        }
-        else {
-          break;
-        }
-      }
-
-      //Check response
-      if (response == "Y" || response == "y") {
-        while (true) {
-          Serial.println("Please enter the serial number:");
-
-          // Wait for user input
-
-          // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
-          while (Serial.available() == 0)
-          {
-            // Do nothing, just wait
-          }
-
-          // Read the serial number from the serial monitor
-          serialNumber = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
-          serialNumber.trim();                         // Remove any leading/trailing whitespace
-
-          //Asks if input is correct
-          Serial.print("You have entered ");
-          Serial.print(serialNumber);
-          Serial.println(". Is this correct? (y/n)");
-
-          String response = "";
-
-          while (true) {
-
-            //Wait for user response
-            while (Serial.available() == 0) {
-
-            }
-
-            //Process input
-            response = Serial.readStringUntil('\n');
-            response.trim();
-            if (response != "N" && response != "n" && response != "Y" && response != "y") {
-              Serial.println("Invalid response!");
-            }
-            else {
-              break;
-            }
-          }
-
-          //Check response
-          if (response == "Y" || response == "y") {
-            break;
-          }
-        }
-        // Save the serial number to Preferences
-        preferences.putString("serialNumber", serialNumber);
-        Serial.print("Serial number ");
-        Serial.print(serialNumber);
-        Serial.println(" saved to storage.");
-        // Serial.setTimeout(1000); // Set the timeout back to default
-      }
+      // Save the serial number to Preferences
+      preferences.putString("serialNumber", serialNumber);
+      Serial.print("Serial number ");
+      Serial.print(serialNumber);
+      Serial.println(" saved to storage.");
     }
 
     //Checks for saved SSID
@@ -725,12 +661,28 @@ void setup()
     }
   }
 
+  //Set server
+  client.setServer(mqttServer, 1883);
+
+  //MQTT server connect
+  while (!client.connected()) {
+    Serial.print("Connecting to MQTT Client...");
+    if (client.connect("FabClient")) {
+      Serial.println("connected to MQTT broker!");
+    }
+    else {
+      Serial.print("failed with state ");
+      Serial.print(client.state());
+      Serial.println(". Retrying in 5 seconds...");
+      delay(5000); // Wait before retrying
+    }
+  }
+
   //Server setup
-  client.setServer(mqttAdress, 1833);
   client.setCallback(mqttCallback);
 
   //Set MQTT subscriptions
-  client.subscribe(freqAdress);
+  client.subscribe(freqTopic.c_str());
 
   // Close Preferences
   preferences.end();
@@ -914,10 +866,10 @@ void CommunicationTask(void *pvParameters)
             leds[0] = CRGB::Cyan; // Led basic colors available Red Orange Gold Yellow Green Aqua Cyan Teal Blue Violet Purple Magenta Pink White Silver Black
             FastLED.show();       // Update LED
           }
-          if (wifiComm) {
-            char *x;
-            sprintf(x, "%d", receivedNumber);
-            client.publish(freqAdress, x, true);
+          if (wifiComm && client.connected()) {
+              char x[16];  // plenty for an integer
+              snprintf(x, sizeof(x), "%d", receivedNumber);
+              client.publish(freqTopic.c_str(), x, true);
           }
         }
         else
@@ -927,19 +879,22 @@ void CommunicationTask(void *pvParameters)
       }
       inputString = ""; // Clear the input buffer
     }
-    if (wifiComm && recTopic == freqAdress) {
-      int messageCopy;
-      memcpy(&messageCopy, recMessage, sizeof(int));
-      if (messageCopy > 0 && messageCopy < 100) {
-        loopFrequencyMs = 1000 / messageCopy;
-        sendSensorData = true;          // Resume sending sensor data
-        previousMillis = currentMillis; // Reset timing
+    if (wifiComm && strcmp(recTopic, freqTopic.c_str()) == 0) {
+      int receivedNumber = atoi(recMessage);  // convert string to int
 
-        leds[0] = CRGB::Cyan; // Led basic colors available Red Orange Gold Yellow Green Aqua Cyan Teal Blue Violet Purple Magenta Pink White Silver Black
-        FastLED.show();
+      if (receivedNumber >= 0 && receivedNumber < 100) {
+          loopFrequencyMs = 1000 / receivedNumber;
+          sendSensorData = true;
+          previousMillis = currentMillis;
+
+          leds[0] = CRGB::Cyan;
+          FastLED.show();
       }
-      recTopic = "";
+
+      // clear topic so we don't process it twice
+      recTopic[0] = '\0';
     }
+
 
     // Check if it's time to send sensor data
     if (sendSensorData && (currentMillis - previousMillis >= loopFrequencyMs))
@@ -972,27 +927,28 @@ void CommunicationTask(void *pvParameters)
           {
             Serial.print(" ");
           }
-        }
-        Serial.println(sensorDataArrayLocal.identifier);
-      }
-      else if (wifiComm) {
-        char *msg;
-        msg += sensorDataArrayLocal.identifier + ' ';
-        char *x;
-        sprintf(x, "%u", sensorDataArrayLocal.timestamp);
-        strcat(msg, x);
-        for (int j = 0; j < sensorDataArrayLocal.valueCount; j++)
-        {
-          x = "";
-          sprintf(x, "%.2f", sensorDataArrayLocal.values[j]); // 2 decimal places
-          if (j < sensorDataArrayLocal.valueCount - 1)
-          {
-            x += ' ';
-          }
-          strcat(msg, x);
-          client.publish(dataAdress, x, true);
+          Serial.println();
         }
       }
+      if (wifiComm) {
+        char msg[256];  // big enough buffer
+        snprintf(msg, sizeof(msg), "%c %u", 
+                sensorDataArrayLocal.identifier, 
+                sensorDataArrayLocal.timestamp);
+
+        for (int j = 0; j < sensorDataArrayLocal.valueCount; j++) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), " %.2f", sensorDataArrayLocal.values[j]);
+            strncat(msg, buf, sizeof(msg) - strlen(msg) - 1);
+        }
+
+        // publish full message once
+        if (!client.publish(dataTopic.c_str(), msg, true)) {
+            Serial.println("MQTT publish failed!");
+        }
+        client.loop();
+      }
+
     }
 
     // Yield to allow lower-priority tasks to run
