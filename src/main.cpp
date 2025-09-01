@@ -1,4 +1,6 @@
-#define FWver "1.0.6" // current Firmware version
+#define FWver "1.0.6a" // current Firmware version
+
+#define MQTT_MAX_PACKET_SIZE 512
 
 #include <Preferences.h>
 #include "nvs_flash.h"
@@ -135,6 +137,21 @@ void mqttCallback(char* topic, byte* message, unsigned int length) {
   int copyLen = min((int)length, MAX_MSG_LEN - 1);
   memcpy(recMessage, message, copyLen);
   recMessage[copyLen] = '\0'; // null terminate
+}
+
+void mqttConnect() {
+  while (!client.connected()) {
+    Serial.print("Connecting to MQTT Client...");
+    if (client.connect("FabClient")) {
+      Serial.println("connected to MQTT broker!");
+    }
+    else {
+      Serial.print("failed with state ");
+      Serial.print(client.state());
+      Serial.println(". Retrying in 5 seconds...");
+      delay(5000); // Wait before retrying
+    }
+  }
 }
 
 
@@ -282,8 +299,12 @@ void setup()
   preferences.begin("my_app", false);
 
   //Skip setup for wifi only mode
-  preferences.getBool("SerialComm", serialComm);
-  preferences.getBool("WifiComm", wifiComm);
+  serialComm = preferences.getBool("SerialComm", false);
+  wifiComm = preferences.getBool("WifiComm", false);
+
+  //Get all preferences
+  ssid = preferences.getString("SSID", "");
+  password = preferences.getString("Password", "");
 
   // Read the serial number from Preferences
   serialNumber = preferences.getString("serialNumber", "");
@@ -358,11 +379,7 @@ void setup()
       Serial.println(" saved to storage.");
     }
 
-    //Checks for saved SSID
-    ssid = preferences.getString("SSID", "");
-    password = preferences.getString("Password", "");
-
-      // Check if the SSID is empty
+    // Check if the SSID is empty
     if (ssid.length() == 0)
     {
       Serial.println("SSID not found in storage.");
@@ -665,18 +682,7 @@ void setup()
   client.setServer(mqttServer, 1883);
 
   //MQTT server connect
-  while (!client.connected()) {
-    Serial.print("Connecting to MQTT Client...");
-    if (client.connect("FabClient")) {
-      Serial.println("connected to MQTT broker!");
-    }
-    else {
-      Serial.print("failed with state ");
-      Serial.print(client.state());
-      Serial.println(". Retrying in 5 seconds...");
-      delay(5000); // Wait before retrying
-    }
-  }
+  mqttConnect();
 
   //Server setup
   client.setCallback(mqttCallback);
@@ -789,10 +795,8 @@ void CommunicationTask(void *pvParameters)
   sensorDataArrayLocal.valueCount = sensorDataArray.valueCount;   // Up to 5 float values
 
   int core = xPortGetCoreID();
-  if (serialComm) {
-      Serial.print("CommunicationTask started on core ");
-      Serial.println(core);
-    }
+  Serial.print("CommunicationTask started on core ");
+  Serial.println(core);
 
   // Initial loop frequency in milliseconds (default to 1000ms)
   uint32_t loopFrequencyMs = 1000;
@@ -812,7 +816,7 @@ void CommunicationTask(void *pvParameters)
     uint32_t currentMillis = millis();
 
     // Handle serial input as soon as it becomes available
-    while (Serial.available() > 0)
+    while (Serial.available() > 0 && serialComm)
     {
       char inChar = (char)Serial.read();
       if (inChar == '\n' || inChar == '\r')
@@ -826,7 +830,7 @@ void CommunicationTask(void *pvParameters)
       }
     }
 
-    if (inputComplete)
+    if (inputComplete && serialComm)
     {
       inputComplete = false;
       inputString.trim(); // Remove any leading/trailing whitespace
@@ -879,22 +883,41 @@ void CommunicationTask(void *pvParameters)
       }
       inputString = ""; // Clear the input buffer
     }
+
+    //Set starting frequency to 1 if oly using Wi-Fi
+    if (wifiComm && !serialComm && client.connected() && !inputComplete) {
+      // Set new loop frequency (receivedNumber is in Hz)
+      loopFrequencyMs = 1000;
+      sendSensorData = true;          // Resume sending sensor data
+      previousMillis = currentMillis; // Reset timing
+
+      leds[0] = CRGB::Cyan; // Led basic colors available Red Orange Gold Yellow Green Aqua Cyan Teal Blue Violet Purple Magenta Pink White Silver Black
+      FastLED.show();
+      client.publish(freqTopic.c_str(), "1", true);
+      inputComplete = true;
+    }
+
+    //Change frequency if received from MQTT Topic
     if (wifiComm && strcmp(recTopic, freqTopic.c_str()) == 0) {
       int receivedNumber = atoi(recMessage);  // convert string to int
 
-      if (receivedNumber >= 0 && receivedNumber < 100) {
-          loopFrequencyMs = 1000 / receivedNumber;
-          sendSensorData = true;
-          previousMillis = currentMillis;
+      if (receivedNumber > 0 && receivedNumber < 100) {
+        loopFrequencyMs = 1000 / receivedNumber;
+        sendSensorData = true;
+        previousMillis = currentMillis;
 
-          leds[0] = CRGB::Cyan;
-          FastLED.show();
+        leds[0] = CRGB::Cyan;
+        FastLED.show();
+      }
+      else if (receivedNumber == 0) {
+        preferences.begin("my_app", false);
+        preferences.putBool("serialComm", true);
+        preferences.end();
       }
 
       // clear topic so we don't process it twice
       recTopic[0] = '\0';
     }
-
 
     // Check if it's time to send sensor data
     if (sendSensorData && (currentMillis - previousMillis >= loopFrequencyMs))
@@ -945,6 +968,7 @@ void CommunicationTask(void *pvParameters)
         // publish full message once
         if (!client.publish(dataTopic.c_str(), msg, true)) {
             Serial.println("MQTT publish failed!");
+            mqttConnect();
         }
         client.loop();
       }
