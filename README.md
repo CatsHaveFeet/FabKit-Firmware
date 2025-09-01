@@ -11,6 +11,9 @@
 *              distance, voltage, current etc., including communication over UART, LED control, etc.
 *
 * Updates:
+*   Version 1.0.6b:
+*     - MQTT Client IP has been changed to FabLab ethernet port
+*     - Sensor Data MQTT messages are no longer retained
 *   Version 1.0.6a:
 *     - You can switch to Serial Communication from Wi-Fi only by sending Frequency 0 through MQTT
 *     - Max Buffer Size over MQTT has been increased to 512

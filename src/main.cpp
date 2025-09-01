@@ -1,4 +1,4 @@
-#define FWver "1.0.6a" // current Firmware version
+#define FWver "1.0.6b" // current Firmware version
 
 #define MQTT_MAX_PACKET_SIZE 512
 
@@ -115,7 +115,7 @@ bool serialComm = false;
 bool wifiComm = false;
 
 //MQTT configuration
-#define mqttServer "192.168.1.11"
+#define mqttServer "192.168.1.10"
 WiFiClient espClient;
 PubSubClient client(espClient);
 char *freq;
@@ -966,7 +966,7 @@ void CommunicationTask(void *pvParameters)
         }
 
         // publish full message once
-        if (!client.publish(dataTopic.c_str(), msg, true)) {
+        if (!client.publish(dataTopic.c_str(), msg)) {
             Serial.println("MQTT publish failed!");
             mqttConnect();
         }
