@@ -6,7 +6,8 @@
 #include "nvs_flash.h"
 #include <WiFi.h>
 #include <Wire.h>
-#include <PubSubClient.h>
+#include <Ticker.h>
+#include <AsyncMqttClient.h>
 #include <cstring>
 
 Preferences preferences;
@@ -117,8 +118,8 @@ bool wifiComm = false;
 //MQTT configuration
 #define mqttServer "192.168.1.11"
 WiFiClient espClient;
-PubSubClient client(espClient);
-char *freq;
+AsyncMqttClient client;
+Ticker mqttReconnectTimer;
 String mqttBaseTopic;
 String dataTopic;
 String freqTopic;
