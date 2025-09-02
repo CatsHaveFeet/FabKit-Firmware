@@ -42,6 +42,7 @@ SemaphoreHandle_t xMutex;
 TaskHandle_t sensorTaskHandle = NULL;
 TaskHandle_t commTaskHandle = NULL;
 TaskHandle_t arduinoTaskHandle = NULL;
+TaskHandle_t displayTaskHandle = NULL;
 
 // Definitions for SENSORS
 
@@ -277,6 +278,13 @@ void setup()
     sensorDataArray.sensoralias = "Curent";
     sensorDataArray.valueCount = 2;
     mqttBaseTopic = "FabKit/FabCurrent";
+  }
+  else if (withinTolerance(voltage1, fabCurrentVoltage, tolerance) && withinTolerance(voltage2, 3.3, tolerance)) {
+    boardType = "FabDisplay";
+    sensorDataArray.identifier = 'S';
+    sensorDataArray.sensoralias = "Screen";
+    sensorDataArray.valueCount = 0;
+    mqttBaseTopic = "FabKit/FabDisplay";
   }
   else
   {
@@ -674,7 +682,16 @@ void setup()
   client.setCallback(mqttCallback);
 
   //Set MQTT subscriptions
-  client.subscribe(freqTopic.c_str());
+  if (sensorDataArray.identifier == 'S') {
+    client.subscribe("FabKit/FabPress/Data");
+    client.subscribe("FabKit/FabTemp/Data");
+    client.subscribe("FabKit/FabMove/Data");
+    client.subscribe("FabKit/FabCurrent/Data");
+    client.subscribe("FabKit/FabLight/Data");
+  }
+  else {
+    client.subscribe(freqTopic.c_str());
+  }
 
   // Close Preferences
   preferences.end();
@@ -692,10 +709,16 @@ void setup()
     while (1)
       ; // Halt execution
   }
-  // Create tasks : // Task function // Name of task // Stack size // Task parameters // Priority // Task handle // Core 1
-  xTaskCreatePinnedToCore(SensorTask, "SensorTask", 10000, NULL, 1, &sensorTaskHandle, 0);    // Core 0
-  xTaskCreatePinnedToCore(CommunicationTask, "CommTask", 10000, NULL, 1, &commTaskHandle, 1); // Core 1
-  xTaskCreatePinnedToCore(ArduinoTask, "ArduinoTask", 2048, NULL, 1, &arduinoTaskHandle, 1);  // Core 1
+
+  if (sensorDataArray.identifier == 'S') {
+    xTaskCreatePinnedToCore(DisplayTask, "DisplayTask", 10000, NULL, 1, &displayTaskHandle, 0);
+  }
+  else {
+    // Create tasks : // Task function // Name of task // Stack size // Task parameters // Priority // Task handle // Core 1
+    xTaskCreatePinnedToCore(SensorTask, "SensorTask", 10000, NULL, 1, &sensorTaskHandle, 0);    // Core 0
+    xTaskCreatePinnedToCore(CommunicationTask, "CommTask", 10000, NULL, 1, &commTaskHandle, 1); // Core 1
+    xTaskCreatePinnedToCore(ArduinoTask, "ArduinoTask", 2048, NULL, 1, &arduinoTaskHandle, 1);  // Core 1
+  }
 
   if (serialComm) {
       Serial.println("Mutex created. Tasks created. Leaving setup().");
@@ -1333,5 +1356,23 @@ float readPressure()
   {
     // Error: insufficient data received
     return NAN; // Return Not-A-Number to indicate an error
+  }
+}
+
+void DisplayTask (void *pvParameters) {
+  vTaskDelay(pdMS_TO_TICKS(300)); // Wait for last Serial write in setup and for first sensor conversion (resolution is 10ms)
+  SensorData sensorDataArrayLocal;
+  sensorDataArrayLocal.identifier = sensorDataArray.identifier;   // Sensor identifier char
+  sensorDataArrayLocal.sensoralias = sensorDataArray.sensoralias; // Alias name
+  sensorDataArrayLocal.valueCount = sensorDataArray.valueCount;   // Up to 5 float values
+
+  int core = xPortGetCoreID();
+  Serial.print("DisplayTask started on core ");
+  Serial.println(core);
+
+  for (;;) {
+
+    // Yield to allow lower-priority tasks to run
+    taskYIELD(); 
   }
 }
