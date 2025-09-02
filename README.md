@@ -11,6 +11,10 @@
 *              distance, voltage, current etc., including communication over UART, LED control, etc.
 *
 * Updates:
+*   Version 1.0.6c:
+*     - Code comments have been cleaned up
+*     - Fabkit modules now change LED colour to red during MQTT disconnect
+*     - Redundant code was cleaned up
 *   Version 1.0.6b:
 *     - MQTT Client IP has been changed to FabLab ethernet port
 *     - Sensor Data MQTT messages are no longer retained

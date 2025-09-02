@@ -1,4 +1,4 @@
-#define FWver "1.0.6b" // current Firmware version
+#define FWver "1.0.6c" // current Firmware version
 
 #define MQTT_MAX_PACKET_SIZE 512
 
@@ -76,11 +76,10 @@ bool TempeNewRealDataAvailable = false;
 #define K_VALUE 16.0 // K value for 0 to 500 kPa range
 
 // Definitions for Distance module
-#include "SparkFun_VL53L1X.h" // Click here to get the library: http://librarymanager/All#SparkFun_VL53L1X
+#include "SparkFun_VL53L1X.h"
 #define SHUTDOWN_PIN 32       // Optional interrupt and shutdown pins.
 #define INTERRUPT_PIN 26
 SFEVL53L1X distanceSensor;
-// SFEVL53L1X distanceSensor(Wire, SHUTDOWN_PIN, INTERRUPT_PIN); // Nu a mers
 float VLsmoothingFactor = 0.2;            // Smoothing factor (alpha), adjust between 0 and 1
 float VLsmoothedDistance = 0;             // Smoothed distance
 float prevDistance = 0, currDistance = 0; // Distances for speed calculation
@@ -118,7 +117,6 @@ bool wifiComm = false;
 #define mqttServer "192.168.1.10"
 WiFiClient espClient;
 PubSubClient client(espClient);
-char *freq;
 String mqttBaseTopic;
 String dataTopic;
 String freqTopic;
@@ -140,10 +138,14 @@ void mqttCallback(char* topic, byte* message, unsigned int length) {
 }
 
 void mqttConnect() {
+  leds[0] = CRGB::Red;
+  FastLED.show();
   while (!client.connected()) {
     Serial.print("Connecting to MQTT Client...");
     if (client.connect("FabClient")) {
       Serial.println("connected to MQTT broker!");
+      leds[0] = CRGB::Cyan;
+      FastLED.show();
     }
     else {
       Serial.print("failed with state ");
@@ -159,11 +161,10 @@ void setup()
 {
   // Serial ports and LED setup
   Serial.begin(460800);                                // For Communication to PC
-                                                       // Serial2.begin(9600);  // Initialize Serial2 with straight RX and TX pins (16 and 17)
   Serial2.begin(9600, SERIAL_8N1, 17, 16);             // Initialize Serial2 with swapped RX and TX pins
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS); // Initialize LED, GRB ordering is assumed
   FastLED.setBrightness(70);                           // Set brightness from 0 to 255
-  leds[0] = CRGB::Red;                                 // Led basic colors available Red Orange Gold Yellow Green Aqua Cyan Teal Blue Violet Purple Magenta Pink White Silver Black
+  leds[0] = CRGB::Red;                                 //Set board LED colour to Red
   FastLED.show();                                      // Update LED
 
   // Check if "EraseNVS" is received for the first second after master boot
@@ -174,7 +175,7 @@ void setup()
     command.trim();
     if (command == "EraseNVS")
     {
-      leds[0] = CRGB::Purple; // Led basic colors available Red Orange Gold Yellow Green Aqua Cyan Teal Blue Violet Purple Magenta Pink White Silver Black
+      leds[0] = CRGB::Purple; //Set board LED colour to Purple
       FastLED.show();         // Update LED
       Serial.println("EraseNVS command received. Erasing NVS...");
       esp_err_t result = nvs_flash_erase(); // Erase all the NVS (Non-Volatile Storage) data
@@ -189,14 +190,13 @@ void setup()
       delay(2000); // Wait for 2 seconds
       Serial.println("Rebooting...");
       delay(2000);           // Wait for 2 seconds
-      leds[0] = CRGB::Black; // Led basic colors available Red Orange Gold Yellow Green Aqua Cyan Teal Blue Violet Purple Magenta Pink White Silver Black
+      leds[0] = CRGB::Black; //Turn board LED off
       FastLED.show();        // Update LED
       ESP.restart();         // Restart ESP32
     }
   }
   // Print firmware version
-  leds[0] = CRGB::Pink; // Led basic colors available Red Orange Gold Yellow Green Aqua Cyan Teal Blue Violet Purple Magenta Pink White Silver Black
-  FastLED.show();       // Update LED
+  leds[0] = CRGB::Pink; //Set board LED colour to Pink
   Serial.println();
   Serial.println();
   Serial.println("Hello FabKit !!");
@@ -319,16 +319,14 @@ void setup()
         Serial.println("Please enter the serial number:");
 
         // Wait for user input
-
-        // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
         while (Serial.available() == 0)
         {
           // Do nothing, just wait
         }
 
         // Read the serial number from the serial monitor
-        serialNumber = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
-        serialNumber.trim();                         // Remove any leading/trailing whitespace
+        serialNumber = Serial.readStringUntil('\n');
+        serialNumber.trim(); // Remove any leading/trailing whitespace
 
         //Asks if input is correct
         Serial.print("You have entered ");
@@ -365,7 +363,6 @@ void setup()
       Serial.print("Serial number ");
       Serial.print(serialNumber);
       Serial.println(" saved to storage.");
-      // Serial.setTimeout(1000); // Set the timeout back to default
     }
     else
     {
@@ -387,16 +384,14 @@ void setup()
         Serial.println("Please enter the SSID:");
 
         // Wait for user input
-
-        // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
         while (Serial.available() == 0)
         {
           // Do nothing, just wait
         }
 
         // Read the serial number from the serial monitor
-        ssid = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
-        ssid.trim();                         // Remove any leading/trailing whitespace
+        ssid = Serial.readStringUntil('\n');
+        ssid.trim(); // Remove any leading/trailing whitespace
 
         //Asks if input is correct
         Serial.print("You have entered ");
@@ -439,15 +434,13 @@ void setup()
         Serial.println("Please enter network password:");
 
         // Wait for user input
-
-        // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
         while (Serial.available() == 0)
         {
           // Do nothing, just wait
         }
 
-        password = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
-        password.trim();                         // Remove any leading/trailing whitespace
+        password = Serial.readStringUntil('\n');
+        password.trim(); // Remove any leading/trailing whitespace
 
         //Asks if input is correct
         Serial.print("You have entered ");
@@ -494,7 +487,6 @@ void setup()
       Serial.println(password);
 
       //Asks if user wants to change value
-      
       Serial.println("Do you wish to change the SSID? (y/n)");
 
       String response = "";
@@ -523,16 +515,14 @@ void setup()
           Serial.println("Please enter the SSID:");
 
           // Wait for user input
-
-          // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
           while (Serial.available() == 0)
           {
             // Do nothing, just wait
           }
 
           // Read the serial number from the serial monitor
-          ssid = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
-          ssid.trim();                         // Remove any leading/trailing whitespace
+          ssid = Serial.readStringUntil('\n');
+          ssid.trim(); // Remove any leading/trailing whitespace
 
           //Asks if input is correct
           Serial.print("You have entered ");
@@ -564,6 +554,7 @@ void setup()
             break;
           }
         }
+
         // Save the SSID to Preferences
         preferences.putString("SSID", ssid);
         Serial.print("SSID ");
@@ -575,15 +566,13 @@ void setup()
           Serial.println("Please enter network password:");
 
           // Wait for user input
-
-          // Serial.setTimeout(4294967295); // Set the timeout to the maximum value (49days)
           while (Serial.available() == 0)
           {
             // Do nothing, just wait
           }
 
-          password = Serial.readStringUntil('\n'); // LF, or change witk \r for CR (some terminals use CR)
-          password.trim();                         // Remove any leading/trailing whitespace
+          password = Serial.readStringUntil('\n');
+          password.trim(); // Remove any leading/trailing whitespace
 
           //Asks if input is correct
           Serial.print("You have entered ");
@@ -615,6 +604,7 @@ void setup()
             break;
           }
         }
+
         // Save the serial number to Preferences
         preferences.putString("Password", password);
         Serial.print("Password ");
@@ -656,10 +646,6 @@ void setup()
       serialComm = true;
       wifiComm = true;
     }
-    if (response != "N" && response != "n") {
-      preferences.putBool("SerialComm", serialComm);
-      preferences.putBool("WifiComm", wifiComm);
-    }
   }
 
   // Connect to WiFi
@@ -692,8 +678,7 @@ void setup()
 
   // Close Preferences
   preferences.end();
-  leds[0] = CRGB::Aqua; // Led basic colors available Red Orange Gold Yellow Green Aqua Cyan Teal Blue Violet Purple Magenta Pink White Silver Black
-  FastLED.show();       // Update LED
+  leds[0] = CRGB::Aqua; //Set board LED colour to Aqua
   delay(50);
 
   // Create Communication and Sensors FreeRTOS tasks
@@ -716,8 +701,8 @@ void setup()
       Serial.println("Mutex created. Tasks created. Leaving setup().");
   }
   
-  leds[0] = CRGB::Black; // Led basic colors available Red Orange Gold Yellow Green Aqua Cyan Teal Blue Violet Purple Magenta Pink White Silver Black
-  FastLED.show();        // Update LED - OFF
+  leds[0] = CRGB::Black; //Turn board LED off
+  FastLED.show();
 }
 
 void loop()
@@ -725,67 +710,6 @@ void loop()
   // Empty. Tasks are running independently.
 }
 
-// // MAIN Communication task
-// void CommunicationTask(void *pvParameters)
-// {
-//   SensorData sensorDataArrayLocal;
-//   sensorDataArrayLocal.identifier = sensorDataArray.identifier; // Sensor identifier char
-//   sensorDataArrayLocal.valueCount = sensorDataArray.valueCount; // Up to 5 float values
-
-//   int core = xPortGetCoreID();
-//   Serial.print("CommunicationTask started on core ");
-//   Serial.println(core);
-
-//   for (;;)
-//   { // Loop sequence
-
-//     // Acquire mutex before reading shared data
-//     if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
-//     {
-//       // for (int i = 0; i < 5; i++) {
-//       //   // Send sensor data
-//       //   Serial.print("Sensor ");
-//       //   Serial.print(sensorDataArray[i].identifier);
-//       //   Serial.print(" @ ");
-//       //   Serial.print(sensorDataArray[i].timestamp);
-//       //   Serial.print("ms: ");
-
-//       //   for (int j = 0; j < sensorDataArray[i].valueCount; j++) {
-//       //     Serial.print(sensorDataArray[i].values[j], 4); // 4 decimal places
-//       //     if (j < sensorDataArray[i].valueCount - 1) {
-//       //       Serial.print(", ");
-//       //     }
-//       //   }
-//       //   Serial.println();
-//       // }
-
-//       sensorDataArrayLocal.timestamp = sensorDataArray.timestamp; // transfer timestamp to local struct
-//       for (int j = 0; j < sensorDataArrayLocal.valueCount; j++)
-//       {
-//         sensorDataArrayLocal.values[j] = sensorDataArray.values[j]; // transfer values to local struct
-//       }
-//       xSemaphoreGive(xMutex);
-//     }
-
-//     Serial.print(sensorDataArrayLocal.identifier);
-//     Serial.print(" ");
-//     Serial.print(sensorDataArrayLocal.timestamp);
-//     Serial.print(" ");
-
-//     for (int j = 0; j < sensorDataArrayLocal.valueCount; j++)
-//     {
-//       Serial.print(sensorDataArrayLocal.values[j], 4); // 4 decimal places
-//       if (j < sensorDataArrayLocal.valueCount - 1)
-//       {
-//         Serial.print(" ");
-//       }
-//     }
-//     Serial.println();
-
-//     // Delay for the next communication
-//     vTaskDelay(communicationInterval / portTICK_PERIOD_MS);
-//   }
-// }
 void CommunicationTask(void *pvParameters)
 {
   vTaskDelay(pdMS_TO_TICKS(300)); // Wait for last Serial write in setup and for first sensor conversion (resolution is 10ms)
@@ -841,12 +765,6 @@ void CommunicationTask(void *pvParameters)
         Serial.println(sensorDataArrayLocal.sensoralias);
         sendSensorData = false;
       }
-      else if (inputString == "A")
-      {
-        // Respond with "Arduino"
-        Serial.println("Arduino"); // temporar
-        // Serial2.println("Arduino2"); //temporar
-      }
       else
       {
         // Try to parse the input as an integer
@@ -867,7 +785,7 @@ void CommunicationTask(void *pvParameters)
             sendSensorData = true;          // Resume sending sensor data
             previousMillis = currentMillis; // Reset timing
 
-            leds[0] = CRGB::Cyan; // Led basic colors available Red Orange Gold Yellow Green Aqua Cyan Teal Blue Violet Purple Magenta Pink White Silver Black
+            leds[0] = CRGB::Cyan; //Set board LED colour to Cyan
             FastLED.show();       // Update LED
           }
           if (wifiComm && client.connected()) {
@@ -884,14 +802,14 @@ void CommunicationTask(void *pvParameters)
       inputString = ""; // Clear the input buffer
     }
 
-    //Set starting frequency to 1 if oly using Wi-Fi
+    //Set starting frequency to 1 if only using Wi-Fi
     if (wifiComm && !serialComm && client.connected() && !inputComplete) {
       // Set new loop frequency (receivedNumber is in Hz)
       loopFrequencyMs = 1000;
-      sendSensorData = true;          // Resume sending sensor data
+      sendSensorData = true;          // Start sending sensor data
       previousMillis = currentMillis; // Reset timing
 
-      leds[0] = CRGB::Cyan; // Led basic colors available Red Orange Gold Yellow Green Aqua Cyan Teal Blue Violet Purple Magenta Pink White Silver Black
+      leds[0] = CRGB::Cyan; //Sets LED to Cyan to show start of data transfer
       FastLED.show();
       client.publish(freqTopic.c_str(), "1", true);
       inputComplete = true;
@@ -928,7 +846,6 @@ void CommunicationTask(void *pvParameters)
       if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
       {
         sensorDataArrayLocal.timestamp = sensorDataArray.timestamp; // transfer timestamp to local struct
-                                                                    // sensorDataArrayLocal.valueCount = sensorDataArray.valueCount;
         for (int j = 0; j < sensorDataArrayLocal.valueCount; j++)
         {
           sensorDataArrayLocal.values[j] = sensorDataArray.values[j]; // transfer values to local struct
@@ -1044,11 +961,11 @@ void ArduinoTask(void *pvParameters)
         // Blink Led
         if (leds[0] == CRGB::Black)
         {
-          leds[0] = CRGB::Yellow;         // Led basic colors available Red Orange Gold Yellow Green Aqua Cyan Teal Blue Violet Purple Magenta Pink White Silver Black
+          leds[0] = CRGB::Yellow;       //Set board LED colour to Yellow
           FastLED.show();               // Update LED
           vTaskDelay(pdMS_TO_TICKS(2)); // Delay for 2 milliseconds,  ATTENTION this will slow the data rate
-          leds[0] = CRGB::Black;        // Led basic colors available Red Orange Gold Yellow Green Aqua Cyan Teal Blue Violet Purple Magenta Pink White Silver Black
-          FastLED.show();
+          leds[0] = CRGB::Black;        //Turn board LED off
+          FastLED.show();               // Update LED
         }
       }
 
@@ -1073,14 +990,7 @@ void SensorTask(void *pvParameters)
   Serial.print("SensorTask started on core ");
   Serial.println(core);
 
-  // SENSORS Initialisation
-  // const int sensorPins[5] = {34, 35, 32, 33, 25}; // Adjust as necessary
-  // const char sensorIdentifiers[5] = {'A', 'B', 'C', 'D', 'E'};
-  //
-  // for (int i = 0; i < 5; i++)
-  // {
-  //   pinMode(sensorPins[i], INPUT);
-  // }
+  //Check board identifier
   if (sensorDataArray.identifier == 'L') // Light
   {
     if (!veml.begin())
@@ -1171,12 +1081,6 @@ void SensorTask(void *pvParameters)
         TempeLastSampleTime = millis(); // Store the time of the actual sample
         // Read the new temperature when RDY pin goes low
         TempeCurrentTemperature = TempeReadTemperature();
-        // // Print the real temperature reading for separate use
-        // Serial.print("Real Time (ms): ");
-        // Serial.print(TempeLastSampleTime);
-        // Serial.print(" - Real Temperature: ");
-        // Serial.println(TempeCurrentTemperature);
-        // Mark that new real data is available
         TempeNewRealDataAvailable = true;
       }
       // Interpolation Task: Perform interpolation exactly every 10ms, regardless of real data timing
@@ -1190,12 +1094,6 @@ void SensorTask(void *pvParameters)
         sensorVal[0] = TempeInterpolatedTemp; // Temperature value to be sent
         currentTime = TempeCurrentTime;       // timestamp to be sent
         SensorSemaphoreSend();                // Update the global sensor struct
-        // // Print the interpolated temperature
-        // Serial.print("Interpolated Time (ms): ");
-        // Serial.print(TempeNextInterpolationTime);
-        // Serial.print(" - Interpolated Temperature: ");
-        // Serial.println(TempeInterpolatedTemp);
-
         // Schedule the next interpolation
         TempeNextInterpolationTime += TempeInterpolationInterval;
       }
@@ -1251,7 +1149,7 @@ void SensorTask(void *pvParameters)
       int16_t adc1_diff1 = ads1.readADC_Differential_0_1(); // Reading differential A0 - A1 from ads1
       int16_t adc1_diff2 = ads1.readADC_Differential_2_3(); // Reading differential A2 - A3 from ads1
       int16_t adc2_diff = ads2.readADC_Differential_0_1();  // Reading differential A0 - A1 from ads2
-      float volts1 = -ads1.computeVolts(adc1_diff2)*1.0811;        // Convert to voltage (based on the gain setting) Range from 0 to +/-1V, (-) sign du to opamp
+      float volts1 = -ads1.computeVolts(adc1_diff2)*1.0811; // Convert to voltage (based on the gain setting) Range from 0 to +/-1V, (-) sign du to opamp
       if (abs(volts1) > 1)
       { // then use the 1/10 attenuator readingA0 - A1 from ads1  Range from */-1V to +/-10V (10mV resolution)
         volts1 = ads1.computeVolts(adc1_diff1) * 11.062;
@@ -1266,16 +1164,12 @@ void SensorTask(void *pvParameters)
     }
 
     taskYIELD(); // give control to RTOS
-                 // vTaskDelay(pdMS_TO_TICKS(1));  // Delay for 1 milliseconds, otherwise WDT crash
 
     if (millis() % 4000 == 0)
     { // every 4 second put a short delay for WDT
       // Perform the 1ms delay
       vTaskDelay(pdMS_TO_TICKS(1)); // Delay for 1 millisecond
     }
-
-    // // Delay for the next reading
-    // vTaskDelay(sensorReadInterval / portTICK_PERIOD_MS);
   }
 }
 
@@ -1353,57 +1247,6 @@ float TempeReadTemperature()
 
 float readPressure()
 {
-  // // Start a combined conversion (pressure and temperature)
-  // Wire.beginTransmission(SENSOR_ADDR);
-  // Wire.write(REG_CMD);
-  // Wire.write(0x0A); // Combined conversion command
-  // Wire.endTransmission();
-
-  // // Wait for conversion to complete by polling the sensor
-  // delay(5); // Short delay for conversion
-
-  // // Poll to check if conversion is done by reading the CMD register
-  // byte status = 1;
-  // while (status & 0x08)
-  // { // Check the conversion ready flag in the status byte
-  //   Wire.beginTransmission(SENSOR_ADDR);
-  //   Wire.write(REG_CMD);
-  //   Wire.endTransmission();
-  //   Wire.requestFrom(SENSOR_ADDR, 1);
-  //   if (Wire.available())
-  //   {
-  //     status = Wire.read();
-  //   }
-  //   delay(2); // Short delay between polls
-  // }
-
-  // // Read the pressure data (24-bit value)
-  // Wire.beginTransmission(SENSOR_ADDR);
-  // Wire.write(REG_PRESSURE_MSB);
-  // Wire.endTransmission();
-  // Wire.requestFrom(SENSOR_ADDR, 3); // Request 3 bytes of pressure data
-
-  // long pressure_adc = 0;
-  // if (Wire.available() == 3)
-  // {
-  //   byte pressure_H = Wire.read(); // MSB
-  //   byte pressure_M = Wire.read(); // CSB
-  //   byte pressure_L = Wire.read(); // LSB
-
-  //   // Combine the three bytes into a single 24-bit integer
-  //   pressure_adc = (long)pressure_H << 16 | (long)pressure_M << 8 | (long)pressure_L;
-
-  //   // Calculate pressure value based on the ADC output
-  //   float pressure;
-  //   if (pressure_adc & 0x800000)
-  //   {                                                  // Negative pressure
-  //     pressure = (pressure_adc - 16777216L) / K_VALUE; // Use K=16 for 0 to 500 kPa range
-  //   }
-  //   else
-  //   { // Positive pressure
-  //     pressure = pressure_adc / K_VALUE;
-  //   }
-
   // Start a combined conversion (pressure and temperature)
   Wire.beginTransmission(SENSOR_ADDR);
   Wire.write(REG_CMD);
